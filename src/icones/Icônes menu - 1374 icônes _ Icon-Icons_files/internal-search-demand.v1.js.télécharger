@@ -1,0 +1,162 @@
+/* Internal search demand: one GA4 event after a submitted icon search succeeds. */
+(function (window, document) {
+  'use strict';
+
+  if (window.IconIconsSearchDemand) return;
+
+  var pendingKey = 'ii.search-demand.pending.v1';
+  var seenKey = 'ii.search-demand.seen.v1';
+  var pendingLifetime = 120000;
+  var seenLifetime = 1800000;
+  var maxSeen = 100;
+  var locales = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'id', 'nl', 'ja', 'zh', 'ko', 'th', 'ar'];
+
+  function permitted() {
+    var navigator = window.navigator || {};
+    var dnt = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+    var measurementId = window.__II_GA_MEASUREMENT_ID;
+    return String(dnt).toLowerCase() !== '1' && String(dnt).toLowerCase() !== 'yes' && !navigator.globalPrivacyControl
+      && !(measurementId && window['ga-disable-' + measurementId]);
+  }
+
+  function normalQuery(value) {
+    if (typeof value !== 'string' || value.length > 320
+      || /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069<>@]/.test(value)) return '';
+    var query = value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+    if (!query || Array.from(query).length > 80 || /[<>@+]/.test(query)
+      || /(?:https?:\/\/|www\.|:\/\/)/i.test(query)
+      || /(?:^|\s)\+?\d[\d\s().-]{5,}\d(?:$|\s)/.test(query)) return '';
+    return query;
+  }
+
+  function normalLocale(value) {
+    var locale = String(value || '').toLowerCase().split('-')[0];
+    return locales.indexOf(locale) !== -1 ? locale : '';
+  }
+
+  function removePending() {
+    try { window.sessionStorage.removeItem(pendingKey); } catch (_) {}
+  }
+
+  function destination(query, locale, target) {
+    var url = new URL(target, window.location.origin);
+    var prefix = locale === 'en' ? '(?:en/)?' : locale + '/';
+    if (url.origin !== window.location.origin
+      || !(new RegExp('^/' + prefix + 'search/?$')).test(url.pathname)
+      || normalQuery(url.searchParams.get('q')) !== query) return null;
+    var allowed = ['q', 'search_mode'];
+    var invalid = false;
+    url.searchParams.forEach(function (value, key) {
+      if (allowed.indexOf(key) === -1 || (key === 'search_mode' && value !== 'icons')) invalid = true;
+    });
+    return invalid ? null : url;
+  }
+
+  function capture(value, mode, language, target) {
+    // A failed or different search must not leave a previous intent behind.
+    removePending();
+    try {
+      if (!permitted() || (mode || 'icons') !== 'icons') return false;
+      var query = normalQuery(value);
+      var locale = normalLocale(language);
+      if (!query || !locale) return false;
+      var url = destination(query, locale, target);
+      if (!url) return false;
+      window.sessionStorage.setItem(pendingKey, JSON.stringify({
+        query: query, locale: locale, mode: 'icons', path: url.pathname, at: Date.now()
+      }));
+      return true;
+    } catch (_) {
+      // Analytics and blocked browser storage must never prevent searching.
+      return false;
+    }
+  }
+
+  function validLanding(context, pending) {
+    if (!context || context.success !== true || Number(context.type_id) !== 1
+      || (context.mode || 'icons') !== 'icons' || Number(context.page || 1) !== 1
+      || normalLocale(context.locale) !== pending.locale) return false;
+    var query = normalQuery(context.query);
+    var sameQuery = query === pending.query;
+    // A server-confirmed pretty route can replace spaces with hyphens only.
+    // It cannot turn a translated or otherwise different tag into this query.
+    if (!sameQuery && typeof context.route_slug === 'string') {
+      sameQuery = normalQuery(context.route_slug) === pending.query.replace(/ /g, '-');
+    }
+    if (!sameQuery) return false;
+
+    var current = new URL(window.location.href);
+    var allowed = ['q', 'search_mode', 'page'];
+    var invalid = false;
+    current.searchParams.forEach(function (value, key) {
+      if (allowed.indexOf(key) === -1 || (key === 'page' && value !== '1')
+        || (key === 'search_mode' && value !== 'icons')) invalid = true;
+    });
+    if (invalid || (current.searchParams.has('q') && normalQuery(current.searchParams.get('q')) !== pending.query)) return false;
+    return current.pathname === pending.path || (typeof context.route_slug === 'string' && context.route_slug !== '');
+  }
+
+  function consume() {
+    try {
+      var raw = window.sessionStorage.getItem(pendingKey);
+      removePending();
+      if (!raw || raw.length > 1024 || !permitted() || typeof window.gtag !== 'function') return;
+      var pending = JSON.parse(raw);
+      var now = Date.now();
+      if (!pending || pending.mode !== 'icons' || !pending.query || pending.query !== normalQuery(pending.query)
+        || !normalLocale(pending.locale) || !Number.isFinite(pending.at)
+        || now - pending.at < -1000 || now - pending.at > pendingLifetime) return;
+
+      var element = document.getElementById('ii-search-demand-context');
+      if (!element || element.textContent.length > 4096) return;
+      var context = JSON.parse(element.textContent);
+      if (!validLanding(context, pending)) return;
+
+      var rawSeen = window.sessionStorage.getItem(seenKey);
+      var seen = rawSeen && rawSeen.length < 24000 ? JSON.parse(rawSeen) : [];
+      if (!Array.isArray(seen)) seen = [];
+      seen = seen.filter(function (entry) {
+        return Array.isArray(entry) && typeof entry[0] === 'string' && Number.isFinite(entry[1])
+          && now - entry[1] >= 0 && now - entry[1] < seenLifetime;
+      }).slice(-maxSeen);
+      var key = JSON.stringify([pending.locale, pending.query]);
+      if (seen.some(function (entry) { return entry[0] === key; })) return;
+
+      // Existing gtag handles consent and delivery. No new network client or endpoint.
+      var params = {
+        search_term: pending.query,
+        search_locale: pending.locale,
+        search_mode: 'icons',
+        search_origin: 'onsite'
+      };
+      if (window.__II_GA_MEASUREMENT_ID) params.send_to = window.__II_GA_MEASUREMENT_ID;
+      window.gtag('event', 'internal_search_submit', params);
+      seen.push([key, now]);
+      window.sessionStorage.setItem(seenKey, JSON.stringify(seen.slice(-maxSeen)));
+    } catch (_) {
+      // Malformed/disabled storage or analytics cannot affect rendering/navigation.
+    }
+  }
+
+  window.IconIconsSearchDemand = { capture: capture };
+
+  // Native GET fallback. Alpine calls capture directly before its navigation;
+  // both paths replace the same pending intent instead of sending two events.
+  document.addEventListener('submit', function (event) {
+    try {
+      var form = event.target;
+      if (event.isTrusted === false || !form || !form.hasAttribute('data-ii-demand-form')
+        || String(form.method || 'get').toLowerCase() !== 'get') return;
+      var input = form.querySelector('[name="q"]');
+      if (!input) return;
+      var mode = form.getAttribute('data-ii-demand-mode') || 'icons';
+      var locale = form.getAttribute('data-ii-demand-locale') || document.documentElement.lang;
+      var target = new URL(form.action, window.location.origin);
+      target.searchParams.set('q', input.value);
+      capture(input.value, mode, locale, target.toString());
+    } catch (_) {}
+  }, true);
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', consume, { once: true });
+  else consume();
+})(window, document);

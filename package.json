@@ -1,0 +1,25 @@
+{
+  "name": "gestion-des-livres",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+  "dev": "npx @tailwindcss/cli -i ./src/input.css -o ./src/output.css --watch"
+},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tabbiznoura-create/Gestion-de-livres-modulaire-avec-JavaScript.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/tabbiznoura-create/Gestion-de-livres-modulaire-avec-JavaScript/issues"
+  },
+  "homepage": "https://github.com/tabbiznoura-create/Gestion-de-livres-modulaire-avec-JavaScript#readme",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}

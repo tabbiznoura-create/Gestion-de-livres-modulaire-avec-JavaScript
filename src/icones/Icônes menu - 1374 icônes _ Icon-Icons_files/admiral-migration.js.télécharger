@@ -1,0 +1,75 @@
+(function () {
+  // Legacy AdConsent/TCF cookies to purge during the Admiral migration.
+  var LEGACY_CONSENT_COOKIES = ['snconsent', 'euconsent-v2', 'snconsent_geo', 'snconsent_geo_exp', 'consentUUID', 'dnsDisplayed', 'ccpaApplies', 'signedLspa', '_sp_su', 'consentDate', 'usnatUUID', 'consentDateUsnat', 'globalcmpUUID', 'consentDateGlobalcmp'];
+
+  function getDomainVariants(hostname) {
+    var parts = hostname.split('.');
+    var domains = [null]; // null = host-only cookie, no Domain attribute
+    for (var i = 0; i < parts.length - 1; i++) {
+      var d = parts.slice(i).join('.');
+      domains.push(d, '.' + d);
+    }
+    domains.push(hostname, '.' + hostname);
+    return domains;
+  }
+
+  function legacyExpire(name, domain, path) {
+    document.cookie =
+      name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=' + path +
+      (domain ? '; domain=' + domain : '');
+  }
+
+  function legacyDeleteEverywhere(name) {
+    var domains = getDomainVariants(window.location.hostname);
+    var paths = ['/', window.location.pathname];
+    paths.forEach(function (path) {
+      domains.forEach(function (domain) {
+        legacyExpire(name, domain, path);
+      });
+    });
+  }
+
+  async function cookieStoreDeleteEverywhere(name) {
+    var domains = getDomainVariants(window.location.hostname);
+    for (var i = 0; i < domains.length; i++) {
+      try {
+        await cookieStore.delete({ name: name, domain: domains[i], path: '/' });
+      } catch (e) {
+        // Invalid domain/path combination for this host; skip and continue
+      }
+    }
+  }
+
+  async function purgeLegacyConsentCookies() {
+    var existingNames = document.cookie.split(';').map(function (c) {
+      return c.trim().split('=')[0];
+    });
+
+    var results = {};
+
+    for (var i = 0; i < LEGACY_CONSENT_COOKIES.length; i++) {
+      var name = LEGACY_CONSENT_COOKIES[i];
+      if (existingNames.indexOf(name) === -1) {
+        results[name] = 'not-present';
+        continue;
+      }
+
+      // Baseline: brute-force document.cookie deletion â€” works in 100% of browsers.
+      legacyDeleteEverywhere(name);
+
+      // Reinforcement: Cookie Store API where available (~92% global support),
+      // with explicit confirmation of the deletion.
+      if ('cookieStore' in window) {
+        await cookieStoreDeleteEverywhere(name);
+      }
+
+      results[name] = document.cookie.indexOf(name + '=') !== -1 ? 'still-present' : 'deleted';
+    }
+
+    return results;
+  }
+
+  purgeLegacyConsentCookies().then(function (results) {
+    console.debug('[consent-cookie-purge]', results);
+  });
+})();
