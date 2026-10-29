@@ -1,7 +1,105 @@
 import { books } from "./books.js";
-import { sauvegarderLivres } from "./storage.js";
+import {
+  sauvegarderLivres,
+  recupererLivres
+} from "./storage.js";
+
+let livres = recupererLivres() ?? [...books];
 
 const listeLivres = document.querySelector("#liste-livres");
+
+
+function afficherLivres() {
+  listeLivres.innerHTML = "";
+
+  livres.forEach(function (livre) {
+    const article = document.createElement("article");
+    article.className =
+      "shadow-md my-4 bg-white w-full h-72 sm:h-80 lg:h-95 rounded-lg";
+
+    const image = document.createElement("img");
+    image.src = livre.image;
+    image.alt = livre.titre;
+    image.className =
+      "h-30 sm:h-40 lg:h-50 w-full rounded-lg object-cover";
+
+    const titre = document.createElement("h2");
+    titre.textContent = livre.titre;
+    titre.className = "cursor-pointer text-[100%] font-bold pt-2 px-2";
+
+    const auteur = document.createElement("p");
+    auteur.textContent = livre.auteur;
+    auteur.className = "text-[70%] text-[#66785F] px-2 py-2";
+
+    const infos = document.createElement("section")
+    infos.className = "flex justify-between gap-3 py-2"
+
+    const annee = document.createElement("p");
+    annee.textContent = livre.annee;
+    annee.className = "text-[70%] text-[#66785F] px-2";
+
+    const categorie = document.createElement("p");
+    categorie.textContent = livre.categorie;
+    categorie.className = "text-[70%] text-[#66785F] px-2";
+
+    infos.append(annee, categorie)
+    article.append(image, titre, auteur, infos);
+
+
+  // -- code les icones -----------
+  
+const actions = document.createElement("div");
+actions.className = "flex justify-between px-2";
+
+const options = document.createElement("div");
+options.className =
+  "cursor-pointer bg-red-100 rounded-full h-6 w-6 flex items-center justify-center";
+
+const imageOptions = document.createElement("img");
+imageOptions.src = "src/icones/7.png";
+imageOptions.alt = "Options";
+imageOptions.className = "w-3 h-3";
+options.append(imageOptions);
+
+const boutons = document.createElement("div");
+boutons.className = "flex gap-2";
+
+const modifier = document.createElement("div");
+modifier.className =
+  "cursor-pointer bg-red-100 rounded-full h-6 w-6 flex items-center justify-center";
+
+const imageModifier = document.createElement("img");
+imageModifier.src = "src/icones/3.png";
+imageModifier.alt = "Modifier";
+imageModifier.className = "w-3 h-3";
+modifier.append(imageModifier);
+
+const supprimer = document.createElement("div");
+supprimer.className =
+  "cursor-pointer bg-red-100 rounded-full h-6 w-6 flex items-center justify-center";
+
+const imageSupprimer = document.createElement("img");
+imageSupprimer.src = "src/icones/1.png";
+imageSupprimer.alt = "Supprimer";
+imageSupprimer.className = "w-3 h-3";
+supprimer.append(imageSupprimer);
+
+boutons.append(modifier, supprimer);
+actions.append(options, boutons);
+
+article.append(actions);
+
+
+
+
+    listeLivres.append(article);
+  
+  });
+}
+
+afficherLivres();
+
+
 
 console.log(books);
 console.log(listeLivres);
@@ -25,50 +123,97 @@ rechercheLivres.addEventListener("input", function () {
 });
 
 const ajouterLivre = document.querySelector("#ajouter-livre");
+
+    
+
 const formulaireLivre = document.querySelector("#formulaire-livre");
 
 
 
 ajouterLivre.addEventListener("click", function () {
+  console.log("Carte cliquée !");
   formulaireLivre.classList.toggle("hidden");
+   console.log(formulaireLivre.classList.contains("hidden"));
 });
 
 
 const titreLivre = document.querySelector("#titre-livre");
 const auteurLivre = document.querySelector("#auteur-livre");
+const anneeLivre = document.querySelector("#annee-livre");
+const categorieLivre = document.querySelector("#categorie-livre");
+const imageLivre = document.querySelector("#image-livre");
+
 
 formulaireLivre.addEventListener("submit", function (event) {
   event.preventDefault();
 
   const titre = titreLivre.value.trim();
   const auteur = auteurLivre.value.trim();
+  const fichierImage = imageLivre.files[0];
 
   if (titre === "" || auteur === "") {
-  console.log("Le titre et l'auteur sont obligatoires.");
-  return;
+    console.log("Le titre et l'auteur sont obligatoires.");
+    return;
+  }
 
-  
-}
-const article = document.createElement("article");
-article.className = "bg-white rounded-lg shadow-md p-4 my-4";
+  if (!fichierImage) {
+    console.log("Veuillez choisir une image.");
+    return;
+  }
 
-const titreElement = document.createElement("h2");
-titreElement.textContent = titre;
-titreElement.className = "font-bold";
+  const lecteur = new FileReader();
 
-const auteurElement = document.createElement("p");
-auteurElement.textContent = auteur;
-auteurElement.className = "text-[#66785F]";
+  lecteur.onload = function () {
+    const nouveauLivre = {
+      id: Date.now(),
+      titre: titre,
+      auteur: auteur,
+      annee: Number(anneeLivre.value),
+      categorie: categorieLivre.value,
+      image: lecteur.result
+    };
 
-article.append(titreElement, auteurElement);
-listeLivres.append(article);
+    livres.push(nouveauLivre);
+    sauvegarderLivres(livres);
 
-formulaireLivre.reset();
-formulaireLivre.classList.add("hidden");
+    const article = document.createElement("article");
+    article.className =
+      "shadow-md my-4 bg-white w-full h-60 sm:h-72 lg:h-85 rounded-lg";
 
-console.log("Livre valide !");
+    const imageElement = document.createElement("img");
+    imageElement.src = nouveauLivre.image;
+    imageElement.alt = titre;
+    imageElement.className = "w-full h-40 object-cover";
 
-  console.log(titre);
-  console.log(auteur);
+    const titreElement = document.createElement("h2");
+    titreElement.textContent = titre;
+    titreElement.className = "font-bold";
+
+    const auteurElement = document.createElement("p");
+    auteurElement.textContent = auteur;
+    auteurElement.className = "text-[#66785F]";
+
+    const anneeElement = document.createElement("p");
+    anneeElement.textContent = nouveauLivre.annee;
+
+    const categorieElement = document.createElement("p");
+    categorieElement.textContent = nouveauLivre.categorie;
+
+    article.append(
+      imageElement,
+      titreElement,
+      auteurElement,
+      anneeElement,
+      categorieElement
+    );
+
+    listeLivres.append(article);
+
+    formulaireLivre.reset();
+    formulaireLivre.classList.add("hidden");
+  };
+
+  lecteur.readAsDataURL(fichierImage);
 });
+
 
