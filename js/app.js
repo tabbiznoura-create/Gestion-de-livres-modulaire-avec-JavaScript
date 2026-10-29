@@ -4,7 +4,8 @@ import {
   recupererLivres
 } from "./storage.js";
 
-let livres = recupererLivres() ?? [...books];
+let livres = recupererLivres() ?? [...books]
+let livreAModifier = null;
 
 const listeLivres = document.querySelector("#liste-livres");
 const ajouterLivre = document.querySelector("#ajouter-livre");
@@ -12,6 +13,45 @@ const ajouterLivre = document.querySelector("#ajouter-livre");
 
 function afficherLivres() {
   listeLivres.innerHTML = "";
+
+  
+
+//   const modifier = document.createElement("div");
+//   modifier.className =
+//     "cursor-pointer bg-red-100 rounded-full h-6 w-6 flex items-center justify-center";
+
+// livreAModifier = livre.id;
+
+// formulaireLivre.classList.remove("hidden");
+// ajouterLivre.classList.add("invisible");
+
+// titreLivre.value = livre.titre;
+// auteurLivre.value = livre.auteur;
+// anneeLivre.value = livre.annee;
+// categorieLivre.value = livre.categorie;
+  
+  
+const triLivres = document.querySelector("#tri-livres");
+
+triLivres.addEventListener("change", function () {
+  const critere = triLivres.value;
+
+  if (critere === "titre" || critere === "auteur") {
+    livres.sort(function (a, b) {
+      return a[critere].localeCompare(b[critere], "fr");
+    });
+  }
+
+  if (critere === "annee") {
+    livres.sort(function (a, b) {
+      return a.annee - b.annee;
+    });
+  }
+
+  afficherLivres();
+})
+
+
 
   livres.forEach(function (livre) {
     const article = document.createElement("article");
@@ -75,6 +115,18 @@ imageModifier.alt = "Modifier";
 imageModifier.className = "w-3 h-3";
 modifier.append(imageModifier);
 
+modifier.addEventListener("click", function () {
+  livreAModifier = livre.id;
+
+  formulaireLivre.classList.remove("hidden");
+  ajouterLivre.classList.add("invisible");
+
+  titreLivre.value = livre.titre;
+  auteurLivre.value = livre.auteur;
+  anneeLivre.value = livre.annee;
+  categorieLivre.value = livre.categorie;
+});
+
 const supprimer = document.createElement("div");
 supprimer.className =
   "cursor-pointer bg-red-100 rounded-full h-6 w-6 flex items-center justify-center";
@@ -85,15 +137,27 @@ imageSupprimer.alt = "Supprimer";
 imageSupprimer.className = "w-3 h-3";
 supprimer.append(imageSupprimer);
 
+supprimer.addEventListener("click", function () {
+  const confirmation = window.confirm(
+    "Voulez-vous vraiment supprimer ce livre ?"
+  );
+
+  if (confirmation) {
+    livres = livres.filter(function (livreActuel) {
+      return livreActuel.id !== livre.id;
+    });
+
+    sauvegarderLivres(livres);
+    afficherLivres();
+  }
+})
+
 boutons.append(modifier, supprimer);
 actions.append(options, boutons);
 
 article.append(actions);
 
-
-
-
-    listeLivres.append(article);
+listeLivres.append(article);
   
   });
 
@@ -101,7 +165,6 @@ article.append(actions);
 }
 
 afficherLivres();
-
 
 
 console.log(books);
@@ -155,6 +218,8 @@ const categorieLivre = document.querySelector("#categorie-livre");
 const imageLivre = document.querySelector("#image-livre");
 
 
+
+
 formulaireLivre.addEventListener("submit", function (event) {
   event.preventDefault();
 
@@ -167,34 +232,62 @@ formulaireLivre.addEventListener("submit", function (event) {
     return;
   }
 
-  if (!fichierImage) {
-    console.log("Veuillez choisir une image.");
-    return;
+  function enregistrerLivre(image) {
+    if (livreAModifier !== null) {
+      livres = livres.map(function (livre) {
+        if (livre.id === livreAModifier) {
+          return {
+            ...livre,
+            titre: titre,
+            auteur: auteur,
+            annee: Number(anneeLivre.value),
+            categorie: categorieLivre.value,
+            image: image
+          };
+        }
+
+        return livre;
+      });
+
+      livreAModifier = null;
+    } else {
+      livres.push({
+        id: Date.now(),
+        titre: titre,
+        auteur: auteur,
+        annee: Number(anneeLivre.value),
+        categorie: categorieLivre.value,
+        image: image
+      });
+    }
+
+    sauvegarderLivres(livres);
+    afficherLivres();
+
+    formulaireLivre.reset();
+    formulaireLivre.classList.add("hidden");
+    ajouterLivre.classList.remove("invisible");
   }
 
-  const lecteur = new FileReader();
+  if (fichierImage) {
+    const lecteur = new FileReader();
 
-  lecteur.onload = function () {
-  const nouveauLivre = {
-    id: Date.now(),
-    titre: titre,
-    auteur: auteur,
-    annee: Number(anneeLivre.value),
-    categorie: categorieLivre.value,
-    image: lecteur.result
-  };
+    lecteur.onload = function () {
+      enregistrerLivre(lecteur.result);
+    };
 
-  livres.push(nouveauLivre);
-  sauvegarderLivres(livres);
-  afficherLivres();
+    lecteur.readAsDataURL(fichierImage);
+  } else if (livreAModifier !== null) {
+    const livreExistant = livres.find(function (livre) {
+      return livre.id === livreAModifier;
+    });
 
-  formulaireLivre.reset();
-  formulaireLivre.classList.add("hidden");
-  ajouterLivre.classList.remove("invisible")
-};
+    enregistrerLivre(livreExistant.image);
+  } else {
+    console.log("Veuillez choisir une image.");
+  }
+});
 
-lecteur.readAsDataURL(fichierImage);
-})
 
 
 

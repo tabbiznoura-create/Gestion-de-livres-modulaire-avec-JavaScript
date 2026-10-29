@@ -42,7 +42,17 @@
         
     <div class="flex justify-between pt-4">
         <div class="flex gap-3">
-            <p class="rounded-full shadow-md bg-white px-4 py-2 cursor-pointer">Trier par</p>
+            <div class="flex gap-3 items-center">
+            <select 
+                id="tri-livres"
+                class="rounded-full shadow-md bg-white px-4 py-2 cursor-pointer"
+                >
+                <option value="">Trier par</option>
+                <option value="titre">Titre</option>
+                <option value="auteur">Auteur</option>
+                <option value="annee">Année</option>
+            </select>
+            </div>
             <p class="rounded-full shadow-md bg-white px-4 py-2 cursor-pointer">Tous</p>
         </div>
             <div class="bg-white rounded-full h-10 w-10 shadow-md flex items-center justify-center cursor-pointer">
