@@ -7,6 +7,7 @@ import {
 let livres = recupererLivres() ?? [...books];
 
 const listeLivres = document.querySelector("#liste-livres");
+const ajouterLivre = document.querySelector("#ajouter-livre");
 
 
 function afficherLivres() {
@@ -95,6 +96,8 @@ article.append(actions);
     listeLivres.append(article);
   
   });
+
+  listeLivres.append(ajouterLivre);
 }
 
 afficherLivres();
@@ -105,11 +108,12 @@ console.log(books);
 console.log(listeLivres);
 
 const rechercheLivres = document.querySelector("#recherche-livres");
-const articles = document.querySelectorAll("#liste-livres article");
 
 rechercheLivres.addEventListener("input", function () {
   const recherche = rechercheLivres.value.toLowerCase().trim();
 
+    const articles = listeLivres.querySelectorAll("article:not(#ajouter-livre)");
+ 
   articles.forEach(function (article) {
     const titre = article.querySelector("h2").textContent.toLowerCase();
     const auteur = article.querySelector("p").textContent.toLowerCase();
@@ -122,7 +126,6 @@ rechercheLivres.addEventListener("input", function () {
   });
 });
 
-const ajouterLivre = document.querySelector("#ajouter-livre");
 
     
 
@@ -133,7 +136,15 @@ const formulaireLivre = document.querySelector("#formulaire-livre");
 ajouterLivre.addEventListener("click", function () {
   console.log("Carte cliquée !");
   formulaireLivre.classList.toggle("hidden");
+  ajouterLivre.classList.toggle("invisible");
    console.log(formulaireLivre.classList.contains("hidden"));
+});
+
+const annulerLivre = document.querySelector("#annuler-livre");
+
+annulerLivre.addEventListener("click", function () {
+  formulaireLivre.classList.add("hidden");
+  ajouterLivre.classList.remove("invisible");
 });
 
 
@@ -164,56 +175,27 @@ formulaireLivre.addEventListener("submit", function (event) {
   const lecteur = new FileReader();
 
   lecteur.onload = function () {
-    const nouveauLivre = {
-      id: Date.now(),
-      titre: titre,
-      auteur: auteur,
-      annee: Number(anneeLivre.value),
-      categorie: categorieLivre.value,
-      image: lecteur.result
-    };
-
-    livres.push(nouveauLivre);
-    sauvegarderLivres(livres);
-
-    const article = document.createElement("article");
-    article.className =
-      "shadow-md my-4 bg-white w-full h-60 sm:h-72 lg:h-85 rounded-lg";
-
-    const imageElement = document.createElement("img");
-    imageElement.src = nouveauLivre.image;
-    imageElement.alt = titre;
-    imageElement.className = "w-full h-40 object-cover";
-
-    const titreElement = document.createElement("h2");
-    titreElement.textContent = titre;
-    titreElement.className = "font-bold";
-
-    const auteurElement = document.createElement("p");
-    auteurElement.textContent = auteur;
-    auteurElement.className = "text-[#66785F]";
-
-    const anneeElement = document.createElement("p");
-    anneeElement.textContent = nouveauLivre.annee;
-
-    const categorieElement = document.createElement("p");
-    categorieElement.textContent = nouveauLivre.categorie;
-
-    article.append(
-      imageElement,
-      titreElement,
-      auteurElement,
-      anneeElement,
-      categorieElement
-    );
-
-    listeLivres.append(article);
-
-    formulaireLivre.reset();
-    formulaireLivre.classList.add("hidden");
+  const nouveauLivre = {
+    id: Date.now(),
+    titre: titre,
+    auteur: auteur,
+    annee: Number(anneeLivre.value),
+    categorie: categorieLivre.value,
+    image: lecteur.result
   };
 
-  lecteur.readAsDataURL(fichierImage);
-});
+  livres.push(nouveauLivre);
+  sauvegarderLivres(livres);
+  afficherLivres();
+
+  formulaireLivre.reset();
+  formulaireLivre.classList.add("hidden");
+  ajouterLivre.classList.remove("invisible")
+};
+
+lecteur.readAsDataURL(fichierImage);
+})
+
+
 
 
